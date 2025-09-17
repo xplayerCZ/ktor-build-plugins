@@ -3,6 +3,7 @@ package io.ktor.plugin.features
 import com.google.cloud.tools.jib.gradle.JibExtension
 import com.google.cloud.tools.jib.gradle.JibPlugin
 import com.google.cloud.tools.jib.gradle.JibTask
+import com.google.cloud.tools.jib.gradle.PlatformParameters
 import com.google.cloud.tools.jib.gradle.TargetImageParameters
 import io.ktor.plugin.internal.*
 import org.gradle.api.*
@@ -27,6 +28,11 @@ public data class DockerPortMapping(
 public data class DockerEnvironmentVariable(
     val variable: String,
     val value: String? = null
+)
+
+public data class DockerPlatform(
+    val architecture: String,
+    val os: String,
 )
 
 public abstract class DockerExtension internal constructor(project: Project) {
@@ -83,6 +89,9 @@ public abstract class DockerExtension internal constructor(project: Project) {
     public fun environmentVariable(name: String, value: String) {
         environmentVariables.add(DockerEnvironmentVariable(name, value))
     }
+
+    public val platforms: ListProperty<DockerPlatform> =
+        project.objects.listProperty(DockerPlatform::class.java).convention(emptyList())
 
     public companion object {
         public const val NAME: String = "docker"
@@ -222,6 +231,11 @@ internal abstract class ConfigureJibTaskBase(@get:Input val isExternal: Boolean)
         val baseImage = dockerExtension.customBaseImage
             .orElse(dockerExtension.jreVersion.map { "eclipse-temurin:${it.majorVersion}-jre" })
         jibExtension.from.setImage(baseImage)
+
+        val platforms = dockerExtension.platforms.get().map {
+            PlatformParameters().apply { os = it.os; architecture = it.architecture }
+        }
+        jibExtension.from.platforms.set(platforms)
 
         if (isExternal) {
             val externalRegistry = dockerExtension.externalRegistry

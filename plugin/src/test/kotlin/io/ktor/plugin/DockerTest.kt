@@ -63,6 +63,7 @@ class DockerTest {
         val jibException = project.extensions.getByType(JibExtension::class.java)
         assertEquals("ktor-docker-image", jibException.to.image)
     }
+
     @Test
     fun `name of the target image is determined by the docker extension`() {
         project.applyKtorPlugin {
@@ -73,6 +74,22 @@ class DockerTest {
         task.execute()
         val jibException = project.extensions.getByType(JibExtension::class.java)
         assertEquals("target-image", jibException.to.image)
+    }
+
+    @Test
+    fun `platforms are determined by the docker extension`() {
+        val platforms = listOf(DockerPlatform("amd64", "linux"))
+        project.applyKtorPlugin {
+            getExtension<DockerExtension>().platforms.set(platforms)
+        }
+
+        val task = project.tasks.named("setupJibLocal", ConfigureJibLocalTask::class.java).get()
+        task.execute()
+        val jibException = project.extensions.getByType(JibExtension::class.java)
+        val jibPlatforms = jibException.from.platforms.get().map {
+            DockerPlatform(it.architecture!!, it.os!!)
+        }
+        assertContentEquals(platforms, jibPlatforms)
     }
 
     @Test
